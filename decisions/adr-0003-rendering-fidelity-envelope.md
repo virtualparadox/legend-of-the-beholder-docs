@@ -206,3 +206,6 @@ marked [NEEDS HUMAN CONFIRMATION] — specifically:
 - Whether **cosmetic filters** (CRT/scanline) and **higher-fidelity atlas redraws**
   are shipped or left to appearance-pack mods (they are architecturally mod-shaped
   under PHASES §3.1 either way).
+
+## Decision confirmed (2026-07-06)
+The high-level envelope is **accepted**: presentation may improve without limit; the interaction model (grid, lockstep, information scarcity, discrete input) is frozen. The four grey-area lines (movement/turn tweening, aspect/FoV widescreen, auto-map reveal policy, discrete-vs-continuous input boundary) are **deferred to Phase 1**, to be settled against the concrete renderer where they are testable. **Status: Accepted (grey-area details deferred).**

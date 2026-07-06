@@ -193,3 +193,6 @@ Concretely:
 - **Compression/packaging for shipped campaigns** — canonical JSON is the *source*
   form; whether distribution bundles are zipped (text preserved inside) is a
   packaging question, out of scope for the IR format itself.
+
+## Decision confirmed (2026-07-06)
+Surface syntax = **JSON** (the recommended option), per the maintainer. The record binding, schema validation, and the `additionalProperties:false` closed-vocabulary enforcement are unchanged. **Status: Accepted.**
