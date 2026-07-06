@@ -380,3 +380,16 @@ Expected: fast-forward-free merge commit on `main`; push succeeds.
 3. **`.INF` decompiler spike** — prototype lifting one EOB1 level script into `event → condition → action`, using `eoblib`'s `Script.java` as a reference; deliverable = a feasibility note + a tiny prototype (research-flavoured, not strict TDD).
 4. **AESOP lift spike** — run DAESOP on `EYE.RES`, hand-lift 1–2 message handlers into `event → condition → action`; deliverable = a feasibility note (the MASTER §6 risk, retired before the IR is frozen).
 5. **§11 decision ADRs** — IR serialisation format and the rendering-fidelity envelope, informed by spikes 3–4.
+
+## Execution outcome (2026-07-06)
+
+Executed subagent-driven. Merged to `main` as `4e65596` (`--no-ff`), all gates green on JDK 21. Commits: `269cbbb` scaffold → `71cadb3` GridPosition → `02a84b3` JDK-21 fail-fast enforcer + build docs.
+
+**Environment finding:** the build requires **JDK 21.x** — the machine default (JDK 25/26) passes the parent's `requireJavaVersion [21,)` but then crashes Palantir Java Format (spotless). Fixed fail-fast: the reactor root enforces `requireJavaVersion [21,22)` with a clear message, and the JDK-21 requirement is documented in the code-repo `README.md` and `AGENTS.md`.
+
+**Deferred follow-ups (from the final whole-branch review — carry into P1):**
+- **`GridPosition` `equals`/`hashCode`/`toString`:** deferred (YAGNI), but the **first task that uses `GridPosition` as a `HashMap` key / `HashSet` member MUST add `equals`/`hashCode` (+ tests)** — identity semantics would otherwise silently produce wrong results.
+- **PMD `AtLeastOneConstructor` on test classes:** every `*Test` class currently needs a dummy no-arg constructor. Exclude this rule from test sources in the parent (`eu.virtualparadox:parent`) so it stops recurring.
+- **Value-type convention:** decide project-wide whether IR primitives are hand-written `final class` (as here, chosen to stay JaCoCo-measured and avoid the `*Record` coverage exclusion) or Java `record`s; standardise `equals`/`hashCode`/`toString`.
+- **Minor niceties:** message-content assertions on the rejection tests; `package-info.java` (`@NullMarked`) for `eu.virtualparadox.beholder.ir` as the package grows.
+- **Optional hardening:** move the JDK-21 pin (toolchains / capped enforcer) into the parent so every `eu.virtualparadox` consumer benefits.
