@@ -62,6 +62,8 @@ checked out side by side under the same parent directory.
 | Code | `~/Workspaces/Java/legend-of-the-beholder` |
 | Docs (this repo, source of truth) | `~/Workspaces/Java/legend-of-the-beholder-docs` |
 
+**Build:** requires **JDK 21.x** — set `JAVA_HOME` to a JDK 21 (e.g. Amazon Corretto 21 at `~/Library/Java/JavaVirtualMachines/corretto-21.0.4/…`). The machine default is newer (JDK 25/26), on which Palantir Java Format (the spotless gate) crashes; the reactor enforces JDK 21 **fail-fast** via `requireJavaVersion [21,22)`. Local routine: `mvn spotless:apply` then `mvn verify`.
+
 **Ground truth & references (already present locally)**
 
 | What | Path | Relevance |
