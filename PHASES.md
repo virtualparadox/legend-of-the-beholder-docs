@@ -154,6 +154,26 @@ renders it → one working trigger. No speculative framework (MASTER §10).
   (game-invariant); avoid its hardcoded pixel/scale tables (anti-pattern).
 - **Fail-closed IR loader** and the versioned schema from commit zero (MASTER §5).
 
+**Milestone breakdown (M1–M5).** P1 is executed as five demonstrable,
+individually differential-testable milestones — each grows the IR from real data
+and ends with its own golden/differential evidence, never a horizontal layer
+built ahead of use (MASTER §10). M1's detailed plan and execution record live in
+`plans/2026-07-06-p1-m1-eob1-cps-decode.md`; later milestones are elaborated
+just-in-time from the previous one's learnings.
+
+| # | Milestone | Differential evidence | New surface | Status |
+|---|---|---|---|---|
+| **M1** | CPS decode + palette | Byte-exact SHA-256 of decoded indices vs real EOB1 data, cross-checked against the independent `eoblib` decoder; palette-paired eyeball | `importer-westwood`: CPS / Format80 / palette | **done** (`d17befb`) |
+| M2 | Static first-person render | Golden diff of one fixed `(cell, facing)` view vs `kyra` / DOSBox | `beholder-ir` geometry + tileset layers; headless renderer | next |
+| M3 | Walkable level | Frame sequence along a fixed path matches ground truth | `engine-core` party + lockstep movement; dynamic render | — |
+| M4 | `.INF` event graph + one trigger | The trigger fires identically to `kyra` / DOSBox | `engine-core` executor; IR event layer | — |
+| M5 | Lossless round-trip | extract → IR (JSON) → render/play identically; byte-stable re-serialize | differential harness | — |
+
+`render-libgdx` (the "render-libgdx v1" task above) enters at **M3**, when
+interactivity is first needed; **M1–M2 render headless** to `int[]`/PNG so the
+differential goldens stay framework- and windowing-free and run under the
+coverage gate.
+
 **Demonstrable end state.** EOB1's first level is walkable; **one working
 trigger** (e.g. a pressure plate → door/teleport).
 **Differential evidence (MASTER §8).** Render/state diff of that level against
