@@ -209,3 +209,45 @@ marked [NEEDS HUMAN CONFIRMATION] — specifically:
 
 ## Decision confirmed (2026-07-06)
 The high-level envelope is **accepted**: presentation may improve without limit; the interaction model (grid, lockstep, information scarcity, discrete input) is frozen. The four grey-area lines (movement/turn tweening, aspect/FoV widescreen, auto-map reveal policy, discrete-vs-continuous input boundary) are **deferred to Phase 1**, to be settled against the concrete renderer where they are testable. **Status: Accepted (grey-area details deferred).**
+
+## M3 grey-area rulings (2026-07-07)
+
+Ruled against the concrete P1 renderer as it enters at **M3** (the `beholder-render-libgdx`
+front-end — the first interactive, input-taking renderer), per the "deferred to Phase 1, settled
+against the concrete renderer where they are testable" disposition above. **Two of the four grey
+areas have an M3 surface** (movement/turn tweening, aspect/FoV); the other two (auto-map reveal,
+the mouse continuous/discrete boundary) have **no M3 surface yet** — no auto-map and no in-view
+mouse interaction exist until later milestones — and stay deferred at their recommended defaults
+until the feature that needs them lands.
+
+1. **Movement / turn tweening — NO tween in M3 (instant discrete snap).** A step or turn
+   transitions instantly to the target `(cell, facing)`, matching the original EOB1 DOS behaviour
+   (which snapped). This keeps the render layer **stateless** — `FirstPersonRenderer.render(state)
+   → int[]`, no `dt`, no in-flight interpolation state — and keeps the M3 differential clean (the
+   rendered frame sequence *is* exactly the sequence of discrete states, §8). A guarded
+   presentation-only tween remains architecturally permissible as a **later** appearance-layer QoL
+   (a pure view interpolation over an already-completed discrete transition, never its own input
+   state, never affecting logic-timing — the guard this ADR's Consequences already require), but it
+   is **explicitly out of scope for M3.** This resolves grey area #1 on the conservative (authentic)
+   side.
+2. **Aspect / FoV — pillarbox at the original FoV (confirmed default).** The M3 window renders
+   **only** the 176×120 first-person viewport (no UI chrome/side-panels yet — those arrive with
+   later milestones), scaled **aspect-preserving** (nearest-neighbour) and pillarboxed/letterboxed
+   to the window. The FoV, view frustum, and A–O cell visibility stay exactly the renderer's fixed
+   model — **never widened.** This confirms the recommended default for grey area #2. The
+   aspect/letterbox math is a pure, headless, gate-tested unit (`ViewportFit` in `render-core`), so
+   the "no FoV widening" property is enforced by construction, not policy.
+3. **Discrete-input boundary — structural (confirmed).** M3 introduces input for the first time
+   (discrete keyboard step/turn). It is enforced **structurally, not by policy**: keyboard events
+   can only produce a value from the closed `MovementCommand` enum
+   (`FORWARD/BACKWARD/STRAFE_LEFT/STRAFE_RIGHT/TURN_LEFT/TURN_RIGHT`), and the engine exposes **no**
+   continuous position/orientation/FoV API — party position is a validated `GridPosition`, facing is
+   one of four `Facing` values. Continuous aim/movement is therefore *unrepresentable* (MASTER §7.2),
+   confirming grey area #4's discrete side for the input M3 actually introduces.
+
+Grey area #3 (auto-map reveal) and the **mouse**-continuous portion of #4 remain **deferred** (no
+surface yet); their recommended "explored-only / discrete-only" defaults stand until auto-map and
+in-view mouse interaction exist.
+
+**Status: Accepted (M3-relevant grey areas ruled — no tween, pillarbox, structural discrete input;
+auto-map reveal + mouse-continuous boundary still deferred at their defaults).**
