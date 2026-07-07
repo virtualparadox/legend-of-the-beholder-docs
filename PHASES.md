@@ -164,8 +164,8 @@ just-in-time from the previous one's learnings.
 | # | Milestone | Differential evidence | New surface | Status |
 |---|---|---|---|---|
 | **M1** | CPS decode + palette | Byte-exact SHA-256 of decoded indices vs real EOB1 data, cross-checked against the independent `eoblib` decoder; palette-paired eyeball | `importer-westwood`: CPS / Format80 / palette | **done** (`d17befb`) |
-| M2 | Static first-person render | Golden diff of one fixed `(cell, facing)` view vs `kyra` / DOSBox | `beholder-ir` geometry + tileset layers; headless renderer | next |
-| M3 | Walkable level | Frame sequence along a fixed path matches ground truth | `engine-core` party + lockstep movement; dynamic render | — |
+| **M2** | Static first-person render | Renders a correct EOB1 first-person view through the full real-IR pipeline (decoders eoblib-byte-exact; projection kyra-verified); maintainer-verified by eye. Pixel-exact kyra golden deferred (ScummVM not installed) | `beholder-ir` geometry + tileset layers; headless `beholder-render-core` | **done** (`d45ad63`) |
+| M3 | Walkable level | Frame sequence along a fixed path matches ground truth | `engine-core` party + lockstep movement; `render-libgdx` (dynamic render) | next |
 | M4 | `.INF` event graph + one trigger | The trigger fires identically to `kyra` / DOSBox | `engine-core` executor; IR event layer | — |
 | M5 | Lossless round-trip | extract → IR (JSON) → render/play identically; byte-stable re-serialize | differential harness | — |
 
