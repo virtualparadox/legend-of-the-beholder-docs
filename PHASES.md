@@ -165,8 +165,8 @@ just-in-time from the previous one's learnings.
 |---|---|---|---|---|
 | **M1** | CPS decode + palette | Byte-exact SHA-256 of decoded indices vs real EOB1 data, cross-checked against the independent `eoblib` decoder; palette-paired eyeball | `importer-westwood`: CPS / Format80 / palette | **done** (`d17befb`) |
 | **M2** | Static first-person render | Renders a correct EOB1 first-person view through the full real-IR pipeline (decoders eoblib-byte-exact; projection kyra-verified); maintainer-verified by eye. Pixel-exact kyra golden deferred (ScummVM not installed) | `beholder-ir` geometry + tileset layers; headless `beholder-render-core` | **done** (`d45ad63`) |
-| M3 | Walkable level | Frame sequence along a fixed path matches ground truth | `engine-core` party + lockstep movement; `render-libgdx` (dynamic render) | next |
-| M4 | `.INF` event graph + one trigger | The trigger fires identically to `kyra` / DOSBox | `engine-core` executor; IR event layer | — |
+| M3 | Walkable level | Scripted-path structural invariants hold on real `LEVEL1.MAZ` (turn-cycle identity, never-off-grid, settle-at-wall, blocked-step no-op) + maintainer eyeball of the rendered walk; collision hand-verified across all four facings; pixel-exact kyra golden deferred (ScummVM not installed) | `engine-core` party + lockstep movement; `render-libgdx` (dynamic render) | **done** (`bf5f809`) |
+| M4 | `.INF` event graph + one trigger | The trigger fires identically to `kyra` / DOSBox | `engine-core` executor; IR event layer | next |
 | M5 | Lossless round-trip | extract → IR (JSON) → render/play identically; byte-stable re-serialize | differential harness | — |
 
 `render-libgdx` (the "render-libgdx v1" task above) enters at **M3**, when
