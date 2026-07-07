@@ -280,8 +280,183 @@ Four legs (no ScummVM; matching M1–M3 posture):
 
 ---
 
-**Next:** on the maintainer's approval of this design, `superpowers:writing-plans` expands it into the
-TDD task-by-task implementation plan (the internal sequencing above becomes ~12–18 tasks, each with
-RED→GREEN steps, `mvn verify` evidence, and per-task review), appended to this document.
+---
+
+## Tasks
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development. TDD per
+> task (RED→GREEN→commit). Style matches the M2/M3 plans: decode/lift/asset tasks are *discovery
+> against real data + a read-only oracle* (byte-exact vs `eoblib`; structure vs the wiki
+> decompilation), not fully pre-coded — the "Format facts" above + each task's differential are the
+> concrete spec. Every task obeys the Global Constraints below.
+
+**Global Constraints.** JDK 21 (`JAVA_HOME=…/corretto-21.0.4/…`; `mvn spotless:apply` then `mvn
+verify`, use `-pl <m> -am` or root to avoid stale `~/.m2` — see the M3 execution outcome). All
+`CODING_STANDARDS` gates: one `return`/method, no `instanceof` (use `getClass()`), no `switch yield`,
+cyclomatic ≤8 (PMD counts boolean ops), ≤12 fields/≤18 methods/≤6 params, no `return null`
+(Optional/throw), NullAway ERROR, Javadoc doclint=all, **every magic value a named `ALL_CAPS`
+constant + why-comment**, JaCoCo BUNDLE ≥0.90 branch+line (`**/model/**` exempt but guards
+behavior-tested). **Never commit game data**: `*IT` `assumeTrue(Files.isReadable(GAME.resolve(
+"EOBDATA3.PAK")))`-skip (game dir `~/Games/Eye of the Beholder.app/Contents/Resources/game`); goldens
+= SHA-256 / derived state; rendered PNGs → git-ignored `target/`. Package roots
+`eu.virtualparadox.beholder.{importer.westwood,ir,engine,render}`.
+
+Branch `feat/p1-m4-inf-events`; commit per task; whole-branch opus review + `--no-ff` merge at the
+end (no worktree). Base = current `main`.
+
+### Task 1: `.INF` full decode — `InfScript` (header + `0xEC`/`0xFB` + script blob + trigger table)
+
+**Files:** Create `importer/westwood/InfScript.java` (+ `InfWallMapping`, `InfTrigger` value carriers
+or nested); Modify `LevelInfoHeader.java` (reuse/extend its name parse) ; Test
+`InfScriptTest.java` (synthetic vectors) + `InfScriptIT.java` (real LEVEL1.INF byte-exact vs eoblib).
+**Interfaces produced:** `InfScript.parse(byte[]) -> InfScript`; `.wallMapping(int index) ->
+InfWallMapping{wallType, decorationId, eventMask, flags}` (0..22 defaults + `0xFB` overrides);
+`.rawScript() -> byte[]`; `.triggers() -> List<InfTrigger{block:int, reasonFlags:int, scriptOffset:int}>`;
+`.mazeName()/.vcnVmpName()`.
+**Approach (TDD):** implement the "Format facts" `.INF` layout: `triggersOffset u16 LE @0`, the 12-B
+names, the 9 skipped/timer bytes, monster block, `nbrECFBCommands u16`, the `0xEC`/`0xFB` command loop
+(prefill 23 wall-mapping defaults — copy eoblib's `wallTypeInit`/`wallEventMaskInit`/`wallFlagsInit`
+arrays as named constants with the "eoblib-verified default" comment), then `rawScript =
+[end-of-commands, triggersOffset)` and the trigger table `count u16` + `count × (block u16, flags u8,
+addr u16)`. Fail-closed on any non-`0xEC`/`0xFB` opcode in the command stream. **Differential:**
+`InfScriptIT` parses real `LEVEL1.INF` (from `EOBDATA3.PAK`, skip-safe) and asserts the wall-mapping
+overrides (indices 24,25,28,58,69), trigger count (38), and a couple of trigger records match the
+values in the "Format facts" (cross-checked to eoblib + the wiki decompilation). Note: `LEVEL1.INF`
+in the PAK may be CPS-wrapped — reuse M1's `WestwoodContainer`/CPS path if the raw bytes aren't a
+plain `.INF` (probe: `triggersOffset` should be a sane in-file offset).
+
+### Task 2: IR event-layer value types (`beholder-ir`)
+
+**Files:** Create in `beholder-ir/.../ir/event/`: `Reason.java` (enum), `Action.java` (sealed
+interface + records/final-class variants), `Condition.java` (sealed expr), `FlagRef.java`
+(scope+id), `TriggerBinding.java`, `Handler.java`, `LevelEvents.java`; and `ir/model/Door.java`,
+`ir/model/Decoration.java`; Modify `ir/WallArchetype.java` (add `DOOR`). Tests: guard tests per type
+(model/ exempt but guards behavior-tested), plus a `Reason`/`Action`/`Condition` shape test.
+**Interfaces produced (the closed vocabulary — sealed):**
+- `Reason{STEP_ONTO, STEP_OFF, CLICKED, ITEM_DROPPED, ITEM_TAKEN, FLYING_LANDED, TIMER}`.
+- `Action` (sealed): `SetWall(GridPosition block, int side, int wallIndex)`, `OpenDoor(GridPosition
+  block)`, `CloseDoor(GridPosition block)`, `ShowMessage(String text, int colour)`, `SetFlag(FlagRef)`,
+  `ClearFlag(FlagRef)`.
+- `Condition` (sealed): `Comparison(Op op, Condition lhs, Condition rhs)`, `BoolOp(BoolKind kind,
+  Condition lhs, Condition rhs)`, `Literal(int value)`, `FlagValue(FlagRef)`, `TriggerReasonValue`,
+  `WallIndexAt(GridPosition block, int side)`, `PartyAt(GridPosition block)`.
+- `FlagRef(Scope scope∈{LEVEL,GLOBAL}, int id)`.
+- `Handler(List<Step>)` where a `Step` is an `Action` or a `Guard(Condition when, List<Step> then)`
+  (early-return modelled as a terminal step); `TriggerBinding(GridPosition block, Set<Reason> reasons,
+  Handler handler)`; `LevelEvents(List<TriggerBinding>, List<Door>, List<Decoration>)`.
+- `Door(GridPosition block, int edge, DoorState state∈{OPEN,CLOSED}, int doorGraphicId)`;
+  `Decoration(int wallMappingIndex, …shape refs…)`.
+- `WallArchetype.DOOR`.
+**Approach:** these are immutable value types (house pattern: final classes / sealed interfaces with
+final-class variants — NOT records where an array field would trip SpotBugs `EI_EXPOSE_REP`, but plain
+records are fine for scalar-only variants; check each). No `switch`/`instanceof` in the IR itself —
+these are *data*; the executor (Task 4) dispatches. Fail-closed guards (null/range) behavior-tested.
+Keep them in `ir/event/` and `ir/model/` (coverage-exempt via `**/model/**`? — `event/` is NOT under
+`model/`, so its guards ARE gate-covered; keep logic-free so trivially covered, or add a package to
+the parent's exempt list only with the maintainer's sign-off — prefer keeping `event/` covered).
+
+### Task 3: The lift — `InfLifter` (bytecode → structured event graph)
+
+**Files:** Create `importer/westwood/InfLifter.java` (+ an internal opcode decoder + RPN lifter +
+control-flow structurer); Test `InfLifterTest.java` (synthetic bytecode vectors for each lifted
+shape) + `InfLifterIT.java` (real LEVEL1 triggers vs the wiki decompilation).
+**Interfaces:** consumes `InfScript` (Task 1) + the IR event types (Task 2); produces
+`InfLifter.lift(InfScript) -> LevelEvents`.
+**Approach (the research core — discovery, ADR-0002 D7):** (a) decode the opcode stream for the ~10
+M4 opcodes (Format facts); (b) structure control flow: `CONDITIONAL(RPN, falseAddr)` → a `Guard`
+(body = fall-through up to `falseAddr`), forward `JUMP` → converging exit, `CALL`/`RETURN` (static u16
+offsets, ≤10 deep) → **inline the callee's steps**, `END` → handler end; (c) lift the RPN sub-op
+stream to a `Condition` tree (stack-balance-checked); (d) map opcodes → the `Action` vocabulary; (e)
+build one `Handler` per trigger, bound to `(block, reasons-from-flags-byte)`. **Differential:**
+`InfLifterTest` hand-writes the two demo triggers' bytecode (the unconditional `SET_WALL` #37/#38 and
+one `OPEN_DOOR`-with-RPN) as synthetic vectors and asserts the lifted `Handler` structure; `InfLifterIT`
+lifts real LEVEL1 and asserts the demo trigger's handler matches the wiki decompilation
+(`files/level1.txt`) structurally (block, reason, action list). Any opcode/flow not in the minimal set
+→ fail-closed with a clear "unsupported for M4" message naming the opcode (so unseen constructs are
+loud, not silently mis-lifted).
+
+### Task 4: `engine-core` executor + `STEP_ONTO` wiring + runtime mutation surface
+
+**Files:** Create `engine/EventExecutor.java`, `engine/ConditionEvaluator.java`; Modify
+`engine/RuntimeState.java` (add the mutable overlay: flag store, door states, wall-index overrides),
+`engine/model/Level.java` (carry `LevelEvents`), and `MovementCommand`/wiring so a completed move
+fires the entered block's `STEP_ONTO`. Tests: `EventExecutorTest`, `ConditionEvaluatorTest`
+(synthetic), + extend the movement tests.
+**Interfaces:** `EventExecutor.fire(RuntimeState, Level, GridPosition block, Reason) -> void`
+(mutates RuntimeState); `RuntimeState.flag(FlagRef)`, `.doorState(block)`, `.wallOverride(block,side)`.
+**Approach:** a simple closed-vocabulary executor (NOT a VM): dispatch each `Action` variant to a
+mutation; evaluate each `Guard`'s `Condition` via a total recursive `ConditionEvaluator` over the
+runtime state; honour early return. Wire `STEP_ONTO` into the M3 move path (after a successful move
+into a block, fire it). **Differential (in-gate state test):** the `SET_WALL` wall-swap demo works
+end-to-end here — a scripted step onto a block whose handler `SetWall`s → assert the runtime wall
+override changed; an `OpenDoor` handler → assert the door state flips to OPEN. This is the milestone's
+first end-to-end proof (no door asset needed). Watch the executor's cyclomatic budget — one dispatch
+helper per action/condition kind (no giant switch), or a small polymorphic apply on the sealed types.
+
+### Task 5: Doors — `WallArchetype.DOOR` collision + open/close state
+
+**Files:** Modify `engine/MovementCommand.java` (collision: a `DOOR` edge is passable iff the door's
+runtime state is OPEN, else blocks — extend the M3 both-edges rule), `WestwoodToIr` (map the `0xFB`
+door wall-types + `OPEN_DOOR`/`CLOSE_DOOR` targets to `Door` features). Tests: extend
+`MovementCommandTest` (DOOR open→passable, closed→blocked) + a real-LEVEL1 IT (the door-opening
+trigger fires → the door edge becomes passable).
+**Approach:** the door-opening trigger (Task 4 executor) now has a visible-in-state effect: after
+firing, the door's edge is passable. Collision reads `RuntimeState.doorState`. **Differential:** state
+test — party steps on the plate → executor opens the door → a subsequent move through the door edge
+succeeds (was blocked before). No rendering yet.
+
+### Task 6: Door-shape asset spike + door-leaf rendering (`render-core`)
+
+**Files:** (spike first — recon the EOB1 door-shape asset format: `eoblib`, `wallsetviewer`, kyra's
+`_doorShapes`/`_dscDoor*` load path) then Create `render/DoorRasterizer.java` (+ any door-shape
+decoder in the importer); Modify `FirstPersonRenderer` to overlay doors. Test: door raster unit test
++ a render eyeball.
+**Approach:** **Step 6a (spike):** determine where EOB1 door-leaf graphics live and their format;
+write a short findings note. **Step 6b:** if tractable, decode the door shapes + render the leaf
+(CLOSED) / open frame (OPEN) at the far→near slots (a `DoorRasterizer` beside `WallSlotRasterizer`,
+kyra `_dscDoor*` as the read-only slot-geometry oracle — a fixed engine constant, not IR). **Fallback**
+(asset intractable, per the design): a `DOOR` renders via its wall-mapping index (CLOSED = a
+door-look/solid index, OPEN = an open index) — a wall-swap; collision unchanged. Either outcome is
+committed with a note; the controller decides real-leaf vs fallback from the spike's finding.
+**Differential:** eyeball (a closed door renders a leaf/door-look; opening it changes the render).
+
+### Task 7: Decoration decode + rendering (`render-core`)
+
+**Files:** Create the `0xEC` overlay `.dat` decoder (importer) + `render/DecorationRasterizer.java`;
+Modify `FirstPersonRenderer` to overlay decorations. Tests: decoder unit test + eyeball.
+**Approach:** decode the `0xEC` overlay's `.dat` rectangle table (+ its `.cps` shapes via M1's CPS
+decoder); draw each wall-mapping index's decoration over the wall at the far→near slots (kyra
+`_dscShapeIndex`/`_dscShapeCoords` as the read-only projection oracle). Render the LEVEL1 decorations
+(buttons/plates/grates). **Differential:** eyeball (the decorations the maintainer observed missing now
+appear).
+
+### Task 8: The door-opening demo end-to-end + eyeball (differential harness)
+
+**Files:** Extend `render-libgdx`'s `WalkableLevelIT` (or a new `M4TriggerIT`): a scripted path that
+steps onto the demo plate → assert (state) the door opens + becomes passable + (render) the frame
+changes; regenerate the contact-sheet PNG showing the door before/after. Update `LibGdxLauncher` so
+the interactive window starts near the demo trigger (so the maintainer can walk onto the plate and see
+the door open). Tests: the IT (skip-safe) + the contact-sheet.
+**Approach:** tie it together on real LEVEL1: a fixed command sequence walks the party onto the plate;
+assert the door's runtime state and passability flip; render a contact-sheet (before-plate,
+on-plate/door-opening, through-door) to git-ignored `target/`. **Differential:** the trigger fires
+identically to the wiki decompilation's intent (state) + the maintainer eyeball (doors + decorations
+render; the trigger visibly opens the door in the window).
+
+### Self-Review (plan vs. design)
+
+- **Spec coverage:** `.INF` decode → T1; IR event layer → T2; the lift → T3; executor + wiring → T4;
+  doors (archetype/collision/state) → T5; door-leaf rendering (+ spike/fallback) → T6; decorations →
+  T7; demo trigger + eyeball → T8. Every design section maps to a task.
+- **Placeholders:** the decode/lift/asset tasks are discovery-against-real-data (the Format facts +
+  each differential are the concrete spec, matching the M2 decoder tasks) — not placeholders. The one
+  true unknown (door-shape asset) is an explicit spike (T6a) with a defined fallback.
+- **Type consistency:** `InfScript`/`InfTrigger`/`InfWallMapping` (T1) consumed by `InfLifter` (T3);
+  the IR event types (T2) produced by T3, consumed by the executor (T4); `RuntimeState` overlay (T4)
+  read by collision (T5) and rendering (T6/T7); `Door`/`DoorState` consistent across T2/T4/T5/T6.
+- **Ordering:** retires risk incrementally — the executor + SET_WALL demo (T4) proves the pipeline
+  before the door-asset spike (T6); doors are collision-correct (T5) before they're rendered (T6).
+
+---
 
 **Execution outcome (2026-07-…).** *(To be filled after execution — matching the M1–M3 execution-outcome sections.)*
