@@ -122,6 +122,33 @@ Differential testing against ground truth, applied to level/render/state — the
 
 **Legal model:** reimplement the engine; the user brings their own original data (the DevilutionX / OpenMW model). Ship no assets. This keeps the project clean regardless of the SSI/D&D (Wizards/Hasbro) rights tangle.
 
+### 9.1 Local environment paths (this workstation)
+
+Concrete local paths for the oracles and ground-truth this project builds against. The
+GPL/original sources are **read-only oracles** — clean-room, never copied into the engine.
+
+- **ScummVM / `kyra` source** (read-only clean-room oracle for the Westwood algorithms —
+  render projection, `.INF`/`.DAT`, CPS/VCN/VMP): `~/Workspaces/CPP/ScummVM` (case-insensitive
+  APFS, so `~/Workspaces/CPP/scummvm` also resolves); the kyra engine at
+  `~/Workspaces/CPP/ScummVM/engines/kyra` (e.g. `scene_rpg.cpp`'s `generateBlockDrawingBuffer`,
+  `staticres_*`'s `_vmpOffsets*`/`_dsc*` tables). **Source only — no built binary** (building
+  ScummVM would be a separate task).
+- **Original games** (the user's own data — MASTER §9 legal model; the engine ships none) under
+  `~/Games/`: EOB1 `Eye of the Beholder.app`, EOB2 `Eye of the Beholder II The Legend of
+  Darkmoon.app`, EOB3 `Eye of the Beholder III Assault on Myth Drannor.app`, `Dungeon Hack.app`.
+- **EOB1 data + runnable pixel ground-truth**: `~/Games/Eye of the Beholder.app/Contents/Resources/game/`
+  (`EOBDATA1..6.PAK`, `EYE.PAK`). The bundle ships **DOSBox**
+  (`~/Games/Eye of the Beholder.app/Contents/Resources/dosbox`, sources under `…/Extras/dosbox/`),
+  so the **original EOB1 is runnable for pixel-exact ground-truth capture** — the missing oracle
+  the M2–M4 render goldens were "maintainer-eyeball" for. Use it to pixel-verify the first-person
+  render (VMP slot geometry, wall/door projection) against the real game.
+- **Engine repo**: `~/Workspaces/Java/legend-of-the-beholder`. **Docs repo** (this document,
+  ADRs, plans, PHASES): `~/Workspaces/Java/legend-of-the-beholder-docs`. **Build-config parent**
+  (`eu.virtualparadox:parent`, the enforced gates): `~/Workspaces/Java/parent`.
+- **EOB RE wiki** (EOB1/2 format specs + decompiled level scripts, graphics-only): see PHASES §2
+  (`~/Documents/EOB-unzip/eob.phpwiki`). **AESOP tooling** (EOB3/DH, later phases):
+  `~/Workspaces/AESOP/` (Thirdeye, DAESOP, the AESOP/32 manuals — PHASES §2).
+
 ## 10. Sequencing philosophy
 
 Governs *how* phases are planned later. Not a phase list.
