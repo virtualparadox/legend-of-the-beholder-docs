@@ -222,3 +222,33 @@ and the extract/boot boundary (is `boot` genuinely IR-only, and is the synthetic
 headless test the durable regression pin the maintainer wanted?). On approval, the
 engine is proven game-neutral across two Westwood games and the composition root is
 IR-pure — the substrate M3 (EOB2 events) and M4 (round-trip + diff) build on.
+
+---
+
+## 10. M2 outcome & M3 carry-forward (post-merge)
+
+**Merged to `main`** (`13db07f`, `--no-ff`): all 8 tasks + one trivial Javadoc fix;
+per-task spec+quality reviews + a whole-branch opus review. The load-bearing one-IR
+boundary was verified by import scan — only `Eob1Extractor`/`Eob2Extractor` import
+Westwood decoders; `Boot`/`BootedGame`/`GameWindow`/`Main` and the render-libgdx main
+tree are decoder-free, and `LibGdxLauncher`'s in-process loading is deleted. EOB2
+LEVEL1 is walkable booted-from-IR (decorations + door leaf render); the EOB1 rewire is
+proven behaviour-preserving by a byte-identical render-identity net; the launcher's
+first automated test is a headless boot from a committed synthetic IR (no game data).
+
+**Carry-forward to M3** (from the whole-branch review):
+- **Asset-name resolution — generalize when a second look exists.** The extractors
+  hardcode LEVEL1's asset file names (EOB2 `DUNG.*`/`BROWN1/2.CPS`/`BROWN.DEC`/
+  `DOOR1.CPS`, pack id `dung`; EOB1 `BRICK.*`/`DOOR.CPS`). Deferred per MASTER §8 (with
+  only LEVEL1 available, name-derivation code adds branches no test can differentially
+  validate). Derive them from `Eob2InfScript.gfxName()`/`.decorationOverlays()`/door
+  shapeFiles (EOB1: `InfScript.vcnVmpName()`/overlays) when M3's events or a multi-level
+  step brings a second look. Optional cheap hardening meanwhile: a fail-closed
+  `gfxName()`-matches-the-hardcoded-look guard.
+- **`RuntimeState.initialDoorState` is edge-blind — fix before M3's door work.** It
+  filters `events().doors()` by `block` only, ignoring `Door.edge()`, so a two-door
+  block resolves to `findFirst()`. Harmless under M2 (base level, all doors CLOSED),
+  but a real bug once a trigger opens one door on a multi-door block.
+- **The `SceneOverlay` wall-mapping resolver leak (design §7).** M3 must carry the
+  wall-mapping table in the IR so a `SET_WALL` override resolves game-agnostically at
+  boot (M2 uses an inert identity resolver since it has no triggers).
