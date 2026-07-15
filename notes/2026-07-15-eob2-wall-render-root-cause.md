@@ -96,3 +96,32 @@ wrong — because "the reload renders *identically* to the fresh decode" proves
 was deferred. A consistently-wrong render passes every test we had. The layout
 reference we lacked existed all along in the wiki's `files/levelN.txt` + the community's
 map knowledge; wiring a real golden against it is the durable fix for the test gap.
+
+## Outcome (2026-07-15) — fixed + validated live
+
+Fixed on `feat/eob2-render-fidelity`, merged to `main` at `2354408`:
+- **`Eob2InfScript`** now seeds the 25-entry standard-wall prefill (indices 0..24 → vmp
+  `0,1,2, 3×20, 4, 5`; kyra `resetWallData`-confirmed, EOB Revealed wiki) before the INF
+  `0xFB` entries override it — so MAZ indices 1/2 (the bulk of walls) resolve to real
+  wall-sets and draw.
+- **`Eob2Extractor`** selects the appearance pack PER LEVEL from `gfxName()`/
+  `decorationOverlays()`/`doors()` — so `LEVEL4`/forest loads with the `FOREST` tileset
+  (it previously threw), plus a clear guard for a level with zero decoration overlays.
+- **`Eob2WallRenderIT`** — the correctness oracle Phase 2 lacked: it renders a real
+  SOLID-wall-facing view and asserts wall pixels are present (pixel-diff vs a
+  wall-set-zeroed twin through the *same* render path, so decoration/door pixels cancel).
+  A consistently-wrong render can no longer pass green. The render layer was unchanged;
+  EOB1 was untouched.
+
+**Live validation — the "map-as-golden" vindicated.** The EOB2 forest (`LEVEL4`) boots from
+the *shared* IR and renders correctly with the `FOREST` tileset; the maintainer walked it and
+navigated **from memory** to the **Darkmoon Temple** (marker `A` on the community map). The
+forest's geometry layout matches the real game. The correctness reference Phase 2's deferred
+pixel-golden lacked was there all along in the community's map knowledge + `files/level4.txt` —
+exactly the gap this milestone closed with `Eob2WallRenderIT`.
+
+**Deferred follow-ups:** EOB1's own prefill is short by 2 entries (indices 23/24; §E.1 —
+kyra applies 25 to both games, our `InfScript` carries 23; likely benign, no known EOB1 level
+hits those indices); the zero-doors door-leaf placeholder duplicates the first decoration sheet
+on export (m2 — inert, now exercised end-to-end by the LEVEL4 render IT and proven harmless);
+`specialType`/`flags` presets for future door-knob/switch interactivity (§E.3).
